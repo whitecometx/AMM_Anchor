@@ -1,13 +1,12 @@
 use anchor_lang::prelude::*;
-use anchor_spl::{self, associated_token::AssociatedToken, token::TokenAccount};
+use anchor_spl::{self, associated_token::AssociatedToken, token::{Mint, Token, Transfer, transfer, TokenAccount}};
 use constant_product_curve::LiquidityPair;
-use ConstantProduct::*;
-
+use constant_product_curve::ConstantProduct;
 use crate::state::Config;
 
 #[derive(Accounts)]
 #[instruction(seed: u64)]
-pub struct Swap<'info> {
+    pub struct Swap<'info> {
     
     #[account(mut)]
     pub user: Signer<'info>,
@@ -53,11 +52,11 @@ impl<'info> Swap<'info> {
     pub fn swap(&mut self, is_x: bool, amount: u64, min: u64) -> Result<()> {
         
         let mut curve = ConstantProduct::init(
-            x: self.vault_x.amount,
-            y: self.vault_y.amount,
-            l:self.vault_x.amount,
+            self.vault_x.amount,
+            self.vault_y.amount,
+            self.vault_x.amount,
             self.config.fee,
-            precision: None,
+            None,
         ).unwrap();
         let p = match is_x {
             true => LiquidityPair::X,

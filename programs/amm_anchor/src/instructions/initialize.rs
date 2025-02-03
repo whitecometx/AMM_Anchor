@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use anchor_spl::{self, associated_token::AssociatedToken, token::TokenAccount};
+use anchor_spl::{self, associated_token::AssociatedToken, token::{TokenAccount, Token, Mint}};
 
 use crate::state::Config;
 
@@ -47,8 +47,8 @@ pub struct Initialize<'info> {
     pub system_program: Program<'info, System>,
 
 }
-impl<'info> Init<'info> {
-    pub fn init(&mut self, seed: u64, fee: u16, authority: Option<Pubkey>, bumps: &InitializeConfigBumps) -> Result<()> {
+impl<'info> Initialize<'info> {
+    pub fn init(&mut self, seed: u64, fee: u16, authority: Option<Pubkey>, bumps: &InitializeBumps) -> Result<()> {
         
         self.config.set_inner(Config {
             authority,
@@ -60,7 +60,7 @@ impl<'info> Init<'info> {
             config_bump: bumps.config,
             lp_bump: bumps.mint_lp, 
         });
-        ok(())
+        Ok(())
     }
 
 }

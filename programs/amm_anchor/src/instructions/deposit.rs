@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
-use anchor_spl::{self, associated_token::AssociatedToken, token::TokenAccount};
-use ConstantProduct::*;
+use anchor_spl::{self, associated_token::AssociatedToken, token::{Mint, Token, TokenAccount, transfer, Transfer, MintTo, mint_to}};
+use constant_product_curve::ConstantProduct;
 
 use crate::state::Config;
 
@@ -48,7 +48,7 @@ pub struct Deposit<'info> {
         associated_token::mint = mint_lp,
         associated_token::authority = user,
     )]
-    pub user_lp: Account<'info, Token>,
+    pub user_lp: Account<'info, TokenAccount>,
     #[account(
         seeds = [b"config", seed.to_le_bytes().as_ref()],
         bump,
@@ -65,20 +65,20 @@ impl<'info> Deposit<'info> {
         let (x,y) = match self.mint_lp.supply == 0 && self.vault_x.amount == 0 && self.vault_y.amount == 0 {
             true => {(max_x, max_y)},
             false => {
-                let amounts = ConstantProduct::xy_deposit_amounts_from_l (
-                    x: self.vault_x.amount,
-                    y: self.vault_y.amount,
-                    l:self.mint_lp.supply,
-                    a: amount,
-                    precision: 6,
-                ).unwrap();
+                let amounts = ConstantProduct::xy_deposit_amounts_from_l(
+                    self.vault_x.amount, // Balance of Token X
+                    self.vault_y.amount, // Balance of Token Y
+                    self.mint_lp.supply, // LP Token Balance
+                    amount, // Fee in basis points, ie: 100 = 1%
+                    6, 
+            ).unwrap();
                 (amounts.x, amounts.y)
             }
         };
-        self.deposit_tokens(is_x:true, x);
-        self.deposit_tokens(is_x: false, y);
-        selp.mint_lp(amount)?;
-        ok(())
+        self.deposit_tokens(true, x);
+        self.deposit_tokens(false, y);
+        self.mint_lp(amount)?;
+        Ok(())
     }
     pub fn deposit_tokens(&self, is_x: bool, amount: u64) -> Result<()> {
         let (from,to) = match is_x {
@@ -94,11 +94,12 @@ impl<'info> Deposit<'info> {
             to,
             authority: self.user.to_account_info()
         };
-        let ctx = CpiContext::new(cpi_program, cpi_account);
-        transfer(ctx, amount)?;
+        let cpi_ctx = CpiContext::new(cpi_program, cpi_account);
+        transfer(cpi_ctx, amount)?;
         Ok(())
     }
-    pub fn mint_lp(&self, amount: u64) -> Re {
+    pub fn mint_lp(&self, amount: u64) -> Result<()> {
+
         let cpi_program = self.token_program.to_account_info();
         let cpi_account = MintTo {
             mint: self.mint_lp.to_account_info(),
